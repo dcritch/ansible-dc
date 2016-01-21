@@ -1,0 +1,4 @@
+KUBE_MASTER="--master=http://{{ groups['atomic-master'][0] }}:8080"
+KUBE_ALLOW_PRIV="--allow_privileged=false"
+KUBE_LOG_LEVEL="--v=0"
+KUBE_LOGTOSTDERR="--logtostderr=true"

@@ -1,0 +1,13 @@
+---
+## playbook to configure a kubernetes cluster on rhel atomic
+
+- name: configure a rhel atomic kubernetes master server
+  hosts: atomic-master
+  remote_user: root
+  roles:
+    - atomic-master
+- name: configure rhel atomic kubernetes minon server(s)
+  hosts: atomic-minion
+  remote_user: root
+  roles:
+    - atomic-minion

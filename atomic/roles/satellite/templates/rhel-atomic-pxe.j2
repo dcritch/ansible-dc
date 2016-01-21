@@ -1,0 +1,7 @@
+DEFAULT atomicpxe
+TIMEOUT 20
+PROMPT 0
+LABEL atomicpxe
+kernel boot/Atomic-x86_64-vmlinuz
+append initrd=http://{{ satellite_host }}/pub/atomic/isolinux/initrd.img repo=http://{{ satellite_host }}/pub/atomic ks=<%= foreman_url('provision')%> ksdevice=bootif network kssendmac
+IPAPPEND 2

@@ -1,0 +1,34 @@
+---
+- name: k8 cfg
+  template: src=config.j2 dest=/etc/kubernetes/config
+  tags:
+  - k8cfg
+- name: kubelet cfg
+  template: src=kubelet.j2 dest=/etc/kubernetes/kubelet
+  tags:
+  - k8cfg
+- name: proxy cfg
+  template: src=proxy.j2 dest=/etc/kubernetes/proxy
+  tags:
+  - k8cfg
+- name: auth cfg
+  copy: src=auth dest=/var/lib/kubelet/auth
+  tags:
+  - k8cfg
+- name: enable and start services
+  service: name={{ item }} state=restarted enabled=yes
+  with_items:
+  - docker
+  - kube-proxy
+  - kubelet
+  tags:
+  - k8svcs
+- name: flanneld cfg
+  template: src=flanneld.j2 dest=/etc/sysconfig/flanneld
+  tags:
+  - flannelcfg
+- name: enable and start flanneld
+  service: name=flanneld state=restarted enabled=yes
+  tags:
+  - flannelsvc
+

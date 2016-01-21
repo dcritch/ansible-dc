@@ -1,0 +1,38 @@
+---
+- name: controller manager cfg
+  template: src=controller-manager.j2 dest=/etc/kubernetes/controller-manager
+  tags:
+  - k8cfg
+- name: k8 cfg
+  template: src=config.j2 dest=/etc/kubernetes/config
+  tags:
+  - k8cfg
+- name: apiserver cfg
+  template: src=apiserver.j2 dest=/etc/kubernetes/apiserver
+  tags:
+  - k8cfg
+- name: enable and start services
+  service: name={{ item }} state=restarted enabled=yes
+  with_items:
+  - etcd
+  - kube-apiserver
+  - kube-controller-manager
+  - kube-scheduler
+  tags:
+  - k8svcs
+- name: flannel cfg
+  template: src=flannel-config.json.j2 dest=/tmp/flannel-config.json
+  tags:
+  - flannelcfg
+- name: flannel cfg import
+  command: curl -L http://{{ groups['atomic-master'][0] }}:4001/v2/keys/coreos.com/network/config -XPUT --data-urlencode value@/tmp/flannel-config.json
+  tags:
+  - flannelcfg
+- name: flanneld cfg
+  template: src=flanneld.j2 dest=/etc/sysconfig/flanneld
+  tags:
+  - flannelcfg
+- name: enable and start flanneld
+  service: name=flanneld state=restarted enabled=yes
+  tags:
+  - flannelsvc

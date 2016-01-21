@@ -1,0 +1,10 @@
+---
+satellite_host: "satellite.example.com"
+satellite_admin: "admin"
+satellite_password: "P@ssw0rd"
+satellite_location: "datacentre"
+satellite_org: "acme inc"
+satellite_ak: "rhel-7-atomic"
+satellite_hg: "rhel-7-atomic"
+satellite_subnet: "vlan1"
+k8_cidr: "10.43.0.0/16"

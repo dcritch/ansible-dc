@@ -1,0 +1,8 @@
+---
+## playbook to configure a satellite server to bootstrap rhel atomic
+
+- name: configure a satellite server to deploy rhel atomic
+  hosts: satellite
+  remote_user: root
+  roles:
+    - satellite

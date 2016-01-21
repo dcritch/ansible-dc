@@ -1,0 +1,9 @@
+[satellite]
+satellite.example.com
+
+[atomic-master]
+atomic00.example.com
+
+[atomic-minion]
+atomic01.example.com
+atomic02.example.com

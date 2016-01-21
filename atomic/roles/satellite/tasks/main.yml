@@ -1,0 +1,122 @@
+---
+## configure hammer
+- file: path=~/.hammer state=directory mode=0755
+  tags:
+  - hammercfg
+- name: hammer | setup cli config file
+  template: src=cli_config.yml.j2 dest=~/.hammer/cli_config.yml
+  tags:
+  - hammercfg
+- name: copy atomic iso
+  copy: src=rhel-atomic-installer.iso dest=/tmp/rhel-atomic-installer.iso
+  tags:
+  - atomiciso
+- name: mk mount pt
+  file: path=/mnt/atomic-iso state=directory mode=0755
+- name: mount atomic iso
+  command: mount -o loop /tmp/rhel-atomic-installer.iso /mnt/atomic-iso
+  tags:
+  - atomiciso
+- name: mk ks tree
+  file: path=/var/www/html/pub/atomic state=directory mode=0755
+  tags:
+  - atomiciso
+- name: copy ks tree
+  command: rsync -avh --progress /mnt/atomic-iso/ /var/www/html/pub/atomic/
+  tags:
+  - atomiciso
+- name: iso unmount
+  command: umount /mnt/atomic-iso
+  tags:
+  - atomiciso
+- name: iso cleanup
+  command: rm /tmp/rhel-atomic-installer.iso
+  tags:
+  - atomiciso
+- name: copy kernel image
+  command: cp /var/www/html/pub/atomic/images/pxeboot/vmlinuz /var/lib/tftpboot/boot/Atomic-x86_64-vmlinuz
+  tags:
+  - atomiciso
+- name: copy pxe template
+  template: src=rhel-atomic-pxe.j2 dest=/tmp/rhel-atomic-pxe
+  tags:
+  - ks
+- name: upload pxe template
+  command: hammer template create --type PXELinux --organizations {{ satellite_org }} --name "RHEL Atomic PXE Template" --locations {{ satellite_location }} --file /tmp/rhel-atomic-pxe
+  tags:
+  - ks
+- name: copy ks template
+  template: src=rhel-atomic-ks.j2 dest=/tmp/rhel-atomic-ks
+  tags:
+  - ks
+- name: upload ks template
+  command: hammer template create --type provision --organizations {{ satellite_org }} --name "RHEL Atomic Kickstart Template" --locations {{ satellite_location }} --file /tmp/rhel-atomic-ks
+  tags:
+  - ks
+- name: define install media
+  command: hammer medium create --locations {{ satellite_location }} --organizations {{ satellite_org }} --name "RHEL Atomic Kickstart" --os-family "Redhat" --path http://{{ satellite_host }}/pub/atomic/LiveOS/
+  tags:
+  - medium
+- name: create os
+  command: hammer os create --architectures "x86_64" --family "Redhat" --major "7" --minor "1" --media "RHEL Atomic Kickstart" --name "RHEL-Atomic" --config-templates "RHEL Atomic Kickstart Template,RHEL Atomic PXE Template"
+  tags:
+  - os
+- name: associate os
+  command: hammer template add-operatingsystem --name "RHEL Atomic Kickstart Template" --operatingsystem "RHEL-Atomic 7.1"
+  tags:
+  - os
+- name: associate os
+  command: hammer template add-operatingsystem --name "RHEL Atomic PXE Template" --operatingsystem "RHEL-Atomic 7.1"
+  tags:
+  - os
+- name: get os id
+  shell: hammer --csv os list | grep RHEL-Atomic | awk -F, '{print $1}'
+  register: os_id
+  tags:
+  - os
+- name: get pxe id
+  shell: hammer --csv template list | grep "Atomic PXE" | awk -F, '{print $1}'
+  register: pxe_id
+  tags:
+  - os
+- name: get ks id
+  shell: hammer --csv template list | grep "Atomic Kickstart" | awk -F, '{print $1}'
+  register: ks_id
+  tags:
+  - os
+- name: set defaults
+  command: hammer os set-default-template --id {{ os_id.stdout }} --config-template-id {{ pxe_id.stdout }}
+  tags:
+  - os
+- name: set defaults
+  command: hammer os set-default-template --id {{ os_id.stdout }} --config-template-id {{ ks_id.stdout }}
+  tags:
+  - os
+
+# setup activation key
+- name: hammer | create activation key
+  command: hammer activation-key create --name {{ satellite_ak }} --lifecycle-environment Library --organization {{ satellite_org }}
+  tags:
+  - ak
+- shell: hammer  --csv subscription list --organization {{ satellite_org }} | grep -v "Name,Contract" | awk -F, '{print $8}'
+  register: subids
+  tags:
+  - ak
+- shell: hammer  --csv activation-key info --name {{ satellite_ak }} --organization {{ satellite_org }}| grep -v 'Name,ID' | awk -F, '{print $2}'
+  register: ak_id
+  tags:
+  - ak
+- name: hammer | add subs to activation key
+  command: hammer activation-key add-subscription --id {{ ak_id.stdout }} --subscription-id {{ item }}
+  with_items: subids.stdout.split('\n')
+  tags:
+  - ak
+
+- name: hammer | create host group
+  command: hammer hostgroup create --name {{ satellite_hg }} --architecture "x86_64" --content-source-id 1 --content-view "Default Organization View" --domain-id 1 --environment production --lifecycle-environment Library --locations {{ satellite_location }} --medium "RHEL Atomic Kickstart" --operatingsystem "RHEL-Atomic 7.1" --organizations {{ satellite_org }} --partition-table "Kickstart default" --puppet-ca-proxy-id 1 --puppet-proxy-id 1 --subnet {{ satellite_subnet }}
+  tags:
+  - hg
+- name: hammer | associate ak
+  command: hammer hostgroup set-parameter --hostgroup "{{ satellite_hg }}" --name kt_activation_keys --value "{{ satellite_ak }}"
+  tags:
+  - hg
